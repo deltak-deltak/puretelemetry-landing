@@ -81,6 +81,7 @@
             class="mb-3 flex max-w-md flex-col gap-3 sm:flex-row"
             action="https://usebasin.com/f/081928ae81dc"
             method="post"
+            data-basin-inline
           >
             <!-- Honeypot anti-spam -->
             <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" />
@@ -99,6 +100,7 @@
               Join the early access list
             </button>
           </form>
+          <p class="mt-2 text-sm" data-basin-status aria-live="polite"></p>
           <p class="text-xs text-slate-400">
             No spam. Just occasional updates and an invite to the beta.
           </p>
@@ -260,28 +262,30 @@
           and we&apos;ll keep you posted on progress and the beta launch.
         </p>
 
-        <form
-          class="mb-2 flex max-w-md flex-col gap-3 sm:flex-row"
-          action="https://usebasin.com/f/081928ae81dc"
-          method="post"
-        >
-          <!-- Honeypot anti-spam -->
-          <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" />
+      <form
+        class="mb-2 flex max-w-md flex-col gap-3 sm:flex-row"
+        action="https://usebasin.com/f/081928ae81dc"
+        method="post"
+        data-basin-inline
+      >
+        <!-- Honeypot anti-spam -->
+        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" />
 
-          <input
-            type="email"
-            name="email"
-            required
-            placeholder="Enter your email"
-            class="flex-1 rounded-lg border border-[#3F4147] bg-[#2B2D31] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-[#38BDF8] focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/40"
-          />
-          <button
-            type="submit"
-            class="rounded-lg bg-[#D7FF00] px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-[#D7FF00]/40 transition hover:bg-lime-300"
-          >
-            Join the waiting list
-          </button>
-        </form>
+        <input
+          type="email"
+          name="email"
+          required
+          placeholder="Enter your email"
+          class="flex-1 rounded-lg border border-[#3F4147] bg-[#2B2D31] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-[#38BDF8] focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/40"
+        />
+        <button
+          type="submit"
+          class="rounded-lg bg-[#D7FF00] px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-[#D7FF00]/40 transition hover:bg-lime-300"
+        >
+          Join the waiting list
+        </button>
+      </form>
+      <p class="mt-2 text-sm" data-basin-status aria-live="polite"></p>
 
         <p class="text-xs text-slate-400">You can unsubscribe at any time. No spam, no nonsense.</p>
       </section>
@@ -296,5 +300,73 @@
         </div>
       </footer>
     </main>
+    <script>
+  (function () {
+    const forms = document.querySelectorAll('form[data-basin-inline]');
+
+    forms.forEach((form) => {
+      const statusEl = form.nextElementSibling?.matches?.('[data-basin-status]')
+        ? form.nextElementSibling
+        : null;
+
+      const button = form.querySelector('button[type="submit"]');
+      const originalBtnText = button ? button.textContent : null;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // honeypot (když bot vyplní, tichý fail)
+        const gotcha = form.querySelector('input[name="_gotcha"]');
+        if (gotcha && gotcha.value) return;
+
+        if (statusEl) {
+          statusEl.textContent = 'Sending…';
+          statusEl.className = 'mt-2 text-sm text-slate-400';
+        }
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Sending…';
+          button.classList.add('opacity-70', 'cursor-not-allowed');
+        }
+
+        try {
+          const formData = new FormData(form);
+
+          const res = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'Accept': 'application/json' }
+          });
+
+          // Basin někdy vrací opaque kvůli CORS – typicky to i tak prošlo
+          if (res.ok || res.type === 'opaque') {
+            form.reset();
+            if (statusEl) {
+              statusEl.textContent = "Thanks, you’re on the list!";
+              statusEl.className = 'mt-2 text-sm text-lime-300';
+            }
+          } else {
+            if (statusEl) {
+              statusEl.textContent = 'Something went wrong. Please try again.';
+              statusEl.className = 'mt-2 text-sm text-rose-300';
+            }
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = 'Network error. Please try again.';
+            statusEl.className = 'mt-2 text-sm text-rose-300';
+          }
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalBtnText;
+            button.classList.remove('opacity-70', 'cursor-not-allowed');
+          }
+        }
+      });
+    });
+  })();
+</script>
   </body>
 </html>
